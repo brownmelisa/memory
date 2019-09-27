@@ -4,7 +4,7 @@ server {
 
     # TODO: This should be your server name.
     #server_name memory.ironbeard.com;
-    server_name memory1.mochiswebforge.site
+    server_name memory1.mochiswebforge.site;
 
     location / {
         proxy_pass http://localhost:4791;
