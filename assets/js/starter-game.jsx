@@ -63,39 +63,52 @@ class Starter extends React.Component {
     root.setState({tiles: tiles});
   }
 
-  addToOpenList(index, root) {
-    let openList = [...root.state.openTiles];
-    if (openList.length < 2 && openList.indexOf(index) === -1) {
-      openList.push(index);
-      root.setState({openTiles: openList});
-      return true;
-    }
-    return false;
-  }
+  // addToOpenList(index, root) {
+  //   let openList = [...root.state.openTiles];
+  //   if (openList.length < 2 && openList.indexOf(index) === -1) {
+  //     openList.push(index);
+  //     console.log(openList);
+  //     console.log("index is", index);
+  //     root.setState({openTiles: openList});
+  //     return true;
+  //   }
+  //   return false;
+  // }
 
   tileClickHandler(event, index, tile) {
-    if (this.addToOpenList(index, this)) {
-      let openList = [...this.state.openTiles];
-      const tiles = [...this.state.tiles];
-      this.incrementClicks(this);
-      this.showTile(index, this);
+    let openList = [...this.state.openTiles];
+    if (openList.length < 2 && openList.indexOf(index) === -1) {
+      openList.push(index);
+      this.setState({openTiles: openList});
+    } else {
+      console.log("too many tiles open", openList);
+      return;
+    }
 
-      // first tile open
-      if (openList.length === 1) {
-        return;
-      }
-      // tiles match
-      else if (tiles[openList[0]].value === tiles[openList[1]].value) {
-        this.markComplete(openList[0], openList[1], this);
-      }
-      // tiles don't match
-      else {
-        setTimeout(() => {
-          this.hideTile(openList[0], this);
-          this.hideTile(openList[1], this);
-        }, 1000);
-        this.setState({tilesOpen: []});
-      }
+    console.log("open tiles are", openList);
+    const tiles = [...this.state.tiles];
+    this.incrementClicks(this);
+    this.showTile(index, this);
+
+    // first tile open
+    if (openList.length === 1) {
+      console.log("first tile open");
+      return;
+    }
+    // tiles match
+    else if (tiles[openList[0]].value === tiles[openList[1]].value) {
+      this.markComplete(openList[0], openList[1], this);
+      this.setState({openTiles: []});
+      console.log("tiles match");
+    }
+    // tiles don't match
+    else {
+      setTimeout(() => {
+        this.hideTile(openList[0], this);
+        this.hideTile(openList[1], this);
+      }, 1000);
+      this.setState({openTiles: []});
+      console.log("tiles don't match");
     }
   }
 
