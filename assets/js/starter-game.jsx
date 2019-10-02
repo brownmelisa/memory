@@ -11,34 +11,28 @@ class Starter extends React.Component {
     super(props);
     this.state = {
       numClicks: 0,
-      tilesOpen: [],
+      openTiles: [],
       tiles: [],
     };
     this.newGameHandler = this.newGameHandler.bind(this);
     this.tileClickHandler = this.tileClickHandler.bind(this);
-    // this.toggleTile = this.toggleTile.bind(this);
-    this.hideTile = this.hideTile.bind(this);
-    this.showTile = this.showTile.bind(this);
   }
 
   generateTiles() {
     let itemsList = ["A", "B", "C", "D", "E", "F", "G", "H"];
-    let newTiles = _.shuffle(_.map(_.concat(itemsList, itemsList), (item) => {
+    return (_.shuffle(_.map(_.concat(itemsList, itemsList), (item) => {
       return {value: item, hide: true, complete: false};
-    }));
-    return newTiles;
-  };
+    })));
+  }
 
   newGameHandler(event) {
-    let tiles = this.generateTiles();
-    this.setState({tiles: tiles});
-    // this.setState(_.assign({}, this.state, {tiles: newTiles}));
+    this.setState({tiles: this.generateTiles()});
     this.setState({numClicks: 0});
   }
 
   // must use a function to update state that depends on current state
-  incrementClicks() {
-    this.setState((state) => {
+  incrementClicks(root) {
+    root.setState((state) => {
       return {numClicks: state.numClicks + 1}
     });
   }
@@ -50,55 +44,58 @@ class Starter extends React.Component {
   //   this.setState({tiles: tiles});
   // }
 
-  showTile(index) {
-    const tiles = [...this.state.tiles];
+  showTile(index, root) {
+    const tiles = [...root.state.tiles];
     tiles[index].hide = false;
-    this.setState({tiles: tiles});
+    root.setState({tiles: tiles});
   }
 
-  hideTile(index) {
-    const tiles = [...this.state.tiles];
+  hideTile(index, root) {
+    const tiles = [...root.state.tiles];
     tiles[index].hide = true;
-    this.setState({tiles: tiles});
+    root.setState({tiles: tiles});
   }
 
-  markComplete(index1, index2) {
-    const tiles = [...this.state.tiles];
+  markComplete(index1, index2, root) {
+    const tiles = [...root.state.tiles];
     tiles[index1].complete = true;
     tiles[index2].complete = true;
-    this.setState({tiles: tiles});
+    root.setState({tiles: tiles});
+  }
+
+  addToOpenList(index, root) {
+    let openList = [...root.state.openTiles];
+    if (openList.length < 2 && openList.indexOf(index) === -1) {
+      openList.push(index);
+      root.setState({openTiles: openList});
+      return true;
+    }
+    return false;
   }
 
   tileClickHandler(event, index, tile) {
-    const openTiles = [...this.state.tilesOpen];  // or this.state.tilesOpen.slice();
-    const tiles = [...this.state.tiles];
+    if (this.addToOpenList(index, this)) {
+      let openList = [...this.state.openTiles];
+      const tiles = [...this.state.tiles];
+      this.incrementClicks(this);
+      this.showTile(index, this);
 
-    // handle double click events
-    if (openTiles[0] === index) {
-      return;
-    }
-
-    this.incrementClicks();
-    this.showTile(index);  // show content of clicked tile
-
-    // no tiles open: open selected tile and add to open tiles list
-    if (openTiles.length === 0) {
-      openTiles.push(index);
-      this.setState({tilesOpen: openTiles});
-    }
-    // clicked on second tile: check match and update attributes
-    else if (openTiles.length === 1) {
-      if (tiles[openTiles[0]].value === tiles[index].value) {
-        this.markComplete(openTiles[0], index);
-        this.showTile(openTiles[0]);
-      } else {
-        setTimeout(() => {
-          // hide text of both tiles
-          this.hideTile(openTiles[0]);
-          this.hideTile(index);
-        }, 1000);
+      // first tile open
+      if (openList.length === 1) {
+        return;
       }
-      this.setState({tilesOpen: []});
+      // tiles match
+      else if (tiles[openList[0]].value === tiles[openList[1]].value) {
+        this.markComplete(openList[0], openList[1], this);
+      }
+      // tiles don't match
+      else {
+        setTimeout(() => {
+          this.hideTile(openList[0], this);
+          this.hideTile(openList[1], this);
+        }, 1000);
+        this.setState({tilesOpen: []});
+      }
     }
   }
 
@@ -111,31 +108,26 @@ class Starter extends React.Component {
       <div className="container" id="mem-game">
         <h1>Memory Tiles</h1>
         <div className="row">
-
           <div className="col-8">
             {this.state.tiles.length > 0 ? null :
              <div>
-               <p>How good is your memory? <br/>
-                 Click on New Game to start playing.</p>
+               <p>How good is your memory? <br/>Click on New Game to start playing.</p>
              </div>}
             <div className="grid-container">{tiles}</div>
             <NewGameButton root={this}/>
           </div>
-
           <div className="col-4">
             {this.state.tiles.length === 0 ? null : <ScoreBox root={this}/>}
           </div>
-
         </div>
+        <a href="http://mochiswebforge.site">back to home page</a>
       </div>
     );
   }
 }
 
-// displays a tile as a grid item corresponding
 function TileItem(props) {
   let {index, root, tile} = props;
-
   // text of tile is only displayed if the hide attribute is false
   return (
     <div className="grid-item">
@@ -168,13 +160,15 @@ function ScoreBox(props) {
 
   function isGameOver() {
     // findIndex returns -1 if index not found, i.e. game over
-    return (_.findIndex(root.state.tiles, (tile) => {return tile.complete === false;}) === -1);
+    return (_.findIndex(root.state.tiles, (tile) => {
+      return tile.complete === false;
+    }) === -1);
   }
 
   return (
     <div id="score-box">
       <p>Clicks: {root.state.numClicks}</p>
-      {isGameOver() ? <p>You've won!</p>: null}
+      {isGameOver() ? <p>You've won!</p> : null}
     </div>
   );
 }
