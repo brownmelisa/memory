@@ -7,17 +7,18 @@ export default function game_init(root) {
 }
 
 class Starter extends React.Component {
+
   constructor(props) {
     super(props);
     this.state = {
       numClicks: 0,
       openTiles: [],
-      tiles: [],
+      tiles: this.generateTiles(),
     };
-    this.newGameHandler = this.newGameHandler.bind(this);
-    this.tileClickHandler = this.tileClickHandler.bind(this);
+    // this.tileClickHandler = this.tileClickHandler.bind(this);
   }
 
+  // generate a list of tiles with default attributes
   generateTiles() {
     let itemsList = ["A", "B", "C", "D", "E", "F", "G", "H"];
     return (_.shuffle(_.map(_.concat(itemsList, itemsList), (item) => {
@@ -25,10 +26,11 @@ class Starter extends React.Component {
     })));
   }
 
-  newGameHandler(event) {
+  // resets the tiles in game state when new game button is clicked
+  newGameHandler() {
     this.setState({tiles: this.generateTiles()});
     this.setState({numClicks: 0});
-  }
+  };
 
   // must use a function to update state that depends on current state
   incrementClicks(root) {
@@ -37,12 +39,13 @@ class Starter extends React.Component {
     });
   }
 
-  // toggleTile(index) {
-  //   const tiles = [...this.state.tiles];
-  //   const isHidden = tiles[index].hide;
-  //   tiles[index].hide = !isHidden;
-  //   this.setState({tiles: tiles});
-  // }
+  isGameOver() {
+    // findIndex returns -1 if index not found, i.e. game over
+    return (_.findIndex(
+      this.state.tiles, (tile) => {
+        return tile.complete === false;
+      }) === -1);
+  }
 
   showTile(index, root) {
     const tiles = [...root.state.tiles];
@@ -63,58 +66,53 @@ class Starter extends React.Component {
     root.setState({tiles: tiles});
   }
 
-  // addToOpenList(index, root) {
-  //   let openList = [...root.state.openTiles];
-  //   if (openList.length < 2 && openList.indexOf(index) === -1) {
-  //     openList.push(index);
-  //     console.log(openList);
-  //     console.log("index is", index);
-  //     root.setState({openTiles: openList});
-  //     return true;
-  //   }
-  //   return false;
-  // }
-
-  tileClickHandler(event, index, tile) {
-    let openList = [...this.state.openTiles];
-    if (openList.length < 2 && openList.indexOf(index) === -1) {
-      openList.push(index);
-      this.setState({openTiles: openList});
-    } else {
-      console.log("too many tiles open", openList);
-      return;
-    }
-
-    console.log("open tiles are", openList);
+  checkMatch() {
     const tiles = [...this.state.tiles];
-    this.incrementClicks(this);
-    this.showTile(index, this);
-
-    // first tile open
-    if (openList.length === 1) {
-      console.log("first tile open");
-      return;
-    }
+    let openList = [...this.state.openTiles];
+    console.log(openList);
     // tiles match
-    else if (tiles[openList[0]].value === tiles[openList[1]].value) {
-      this.markComplete(openList[0], openList[1], this);
-      this.setState({openTiles: []});
-      console.log("tiles match");
-    }
-    // tiles don't match
-    else {
-      setTimeout(() => {
+    if (openList.length === 2) {
+      if (tiles[openList[0]].value === tiles[openList[1]].value) {
+        this.markComplete(openList[0], openList[1], this);
+      }
+      // tiles don't match, so hide them
+      else {
         this.hideTile(openList[0], this);
         this.hideTile(openList[1], this);
-      }, 1000);
+      }
       this.setState({openTiles: []});
-      console.log("tiles don't match");
+    }
+  }
+
+  tileClickHandler(index) {
+    let openList = [...this.state.openTiles];
+    // if 2 tiles are open, check if they match
+    if (openList.length === 2) {
+      setTimeout(() => {
+        this.checkMatch();
+      }, 1000);
+    }
+    // otherwise add the tile to openTiles list if it isn't a duplicate
+    else if (openList.indexOf(index) === -1) {
+      this.showTile(index, this);
+      this.incrementClicks(this);
+      openList.push(index);
+      this.setState({openTiles: openList});
+      if (openList.length === 2) {
+        setTimeout(() => {
+          this.checkMatch();
+        }, 1000);
+      }
     }
   }
 
   render() {
     let tiles = _.map(this.state.tiles, (tile, index) => {
-      return <TileItem key={index} index={index} root={this} tile={tile}/>;
+      return <TileItem
+        key={index} tile={tile}
+        on_tile_click={() => {
+          this.tileClickHandler(index)
+        }}/>;
     });
 
     return (
@@ -122,15 +120,12 @@ class Starter extends React.Component {
         <h1>Memory Tiles</h1>
         <div className="row">
           <div className="col-8">
-            {this.state.tiles.length > 0 ? null :
-             <div>
-               <p>How good is your memory? <br/>Click on New Game to start playing.</p>
-             </div>}
             <div className="grid-container">{tiles}</div>
-            <NewGameButton root={this}/>
+            <NewGameButton new_game={() => {this.newGameHandler()}}/>
           </div>
+
           <div className="col-4">
-            {this.state.tiles.length === 0 ? null : <ScoreBox root={this}/>}
+           <ScoreBox clicks={this.state.numClicks} game_over={this.isGameOver()}/>
           </div>
         </div>
         <a href="http://mochiswebforge.site">back to home page</a>
@@ -140,17 +135,15 @@ class Starter extends React.Component {
 }
 
 function TileItem(props) {
-  let {index, root, tile} = props;
+  let {tile, on_tile_click} = props;
   // text of tile is only displayed if the hide attribute is false
   return (
     <div className="grid-item">
-      <button
-        className="tile-btn"
-        disabled={tile.complete}
-        onClick={(event) => root.tileClickHandler(event, index, tile)}>
+      <button className="tile-btn"
+              disabled={tile.complete}
+              onClick={on_tile_click}>
         <div className="btn-text"
-             style={{display: tile.hide ? "none" : "block"}}>
-          {tile.value}
+             style={{display: tile.hide ? "none" : "block"}}>{tile.value}
         </div>
       </button>
     </div>
@@ -158,30 +151,23 @@ function TileItem(props) {
 }
 
 function NewGameButton(props) {
-  let {root} = props;
+  let {new_game} = props;
   return (
     <div>
       <button id="new-game-btn"
-              onClick={root.newGameHandler}>New Game
+              onClick={new_game}>New Game
       </button>
     </div>
   );
 }
 
 function ScoreBox(props) {
-  let {root} = props;
-
-  function isGameOver() {
-    // findIndex returns -1 if index not found, i.e. game over
-    return (_.findIndex(root.state.tiles, (tile) => {
-      return tile.complete === false;
-    }) === -1);
-  }
-
+  let {clicks, game_over} = props;
   return (
     <div id="score-box">
-      <p>Clicks: {root.state.numClicks}</p>
-      {isGameOver() ? <p>You've won!</p> : null}
+      <p>Clicks: {clicks}</p>
+      {game_over ? <p>You win!</p> : null}
     </div>
   );
 }
+
